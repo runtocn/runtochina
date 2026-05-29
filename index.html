@@ -1737,7 +1737,7 @@ function initCityPool() {
     const src = pid ? `https://images.unsplash.com/${pid}?w=500&h=360&fit=crop&auto=format&q=75` : '';
     const region = CITY_REGIONS[c] || '';
     return `
-      <div class="city-card" data-city="${c}" onclick="toggleCity('${c}')">
+      <div class="city-card" data-city="${escapeHTML(c)}" onclick='toggleCity(${JSON.stringify(c)})'>
         <div class="city-card-bg"></div>
         ${src ? `<img class="city-card-img" src="${src}" alt="${c}" loading="lazy" onerror="this.style.opacity=0">` : ''}
         <div class="city-card-overlay">
@@ -2473,16 +2473,37 @@ const CHINA_CITIES = [
   {name:'Heze',         region:'Shandong Province',               lat:35.2333, lng:115.4333},
 ];
 
+function normalizeCitySearchText(str = '') {
+  // Allows searches like xian, xi an, xi'an to match Xi'an.
+  return String(str)
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
 function searchLocalCities(query) {
   const q = query.toLowerCase().trim();
-  if (!q) return [];
-  return CHINA_CITIES.filter(c =>
-    c.name.toLowerCase().startsWith(q) ||
-    c.name.toLowerCase().includes(q)
-  ).sort((a, b) => {
-    // Prioritise starts-with over contains
-    const aStarts = a.name.toLowerCase().startsWith(q) ? 0 : 1;
-    const bStarts = b.name.toLowerCase().startsWith(q) ? 0 : 1;
+  const qn = normalizeCitySearchText(query);
+  if (!q && !qn) return [];
+
+  return CHINA_CITIES.filter(c => {
+    const name = c.name.toLowerCase();
+    const normalizedName = normalizeCitySearchText(c.name);
+    const region = (c.region || '').toLowerCase();
+    return (
+      name.startsWith(q) ||
+      name.includes(q) ||
+      normalizedName.startsWith(qn) ||
+      normalizedName.includes(qn) ||
+      region.includes(q)
+    );
+  }).sort((a, b) => {
+    // Prioritise exact / starts-with matches over contains.
+    const an = normalizeCitySearchText(a.name);
+    const bn = normalizeCitySearchText(b.name);
+    const aStarts = a.name.toLowerCase().startsWith(q) || an.startsWith(qn) ? 0 : 1;
+    const bStarts = b.name.toLowerCase().startsWith(q) || bn.startsWith(qn) ? 0 : 1;
     return aStarts - bStarts || a.name.localeCompare(b.name);
   }).slice(0, 8);
 }

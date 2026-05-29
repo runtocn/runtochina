@@ -1732,21 +1732,36 @@ function addCustomCity(name, region, lat, lng) {
 }
 
 function initCityPool() {
-  document.getElementById('cityPool').innerHTML = AVAILABLE_CITIES.map(c => {
+  const pool = document.getElementById('cityPool');
+  pool.innerHTML = AVAILABLE_CITIES.map(c => {
     const pid = CITY_PHOTOS[c] || '';
     const src = pid ? `https://images.unsplash.com/${pid}?w=500&h=360&fit=crop&auto=format&q=75` : '';
     const region = CITY_REGIONS[c] || '';
     return `
-      <div class="city-card" data-city="${escapeHTML(c)}" onclick='toggleCity(${JSON.stringify(c)})'>
+      <div class="city-card" data-city="${escapeHTML(c)}" role="button" tabindex="0" aria-label="Select ${escapeHTML(c)}">
         <div class="city-card-bg"></div>
-        ${src ? `<img class="city-card-img" src="${src}" alt="${c}" loading="lazy" onerror="this.style.opacity=0">` : ''}
+        ${src ? `<img class="city-card-img" src="${src}" alt="${escapeHTML(c)}" loading="lazy" onerror="this.style.opacity=0">` : ''}
         <div class="city-card-overlay">
-          <div class="city-card-name">${c}</div>
+          <div class="city-card-name">${escapeHTML(c)}</div>
           <div class="city-card-region">${region}</div>
         </div>
         <div class="city-card-check">&#10003;</div>
       </div>`;
   }).join('');
+
+  // Do not use inline onclick for city names like Xi'an.
+  // In HTML attributes, the apostrophe can break onclick='toggleCity("Xi'an")'.
+  // Event listeners read the safe data-city value instead.
+  pool.querySelectorAll('.city-card').forEach(card => {
+    const select = () => toggleCity(card.dataset.city || '');
+    card.addEventListener('click', select);
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        select();
+      }
+    });
+  });
 }
 function toggleCity(city) {
   const idx = state.cities.indexOf(city);

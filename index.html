@@ -2983,8 +2983,10 @@ async function generateItineraryPDF(customerName) {
         page.style.boxShadow = 'none';
         page.style.overflow = 'hidden';
 
+        const renderConfig = getPDFRenderConfig();
+
         const canvas = await html2canvas(page, {
-          scale: 3,
+          scale: renderConfig.scale,
           useCORS: true,
           allowTaint: true,
           backgroundColor: '#fffaf4',
@@ -2993,9 +2995,9 @@ async function generateItineraryPDF(customerName) {
           windowHeight: page.scrollHeight
         });
 
-        const imgData = canvas.toDataURL('image/png');
+        const imgData = canvas.toDataURL(renderConfig.imageType, renderConfig.quality);
         if (i > 0) doc.addPage('a4', 'portrait');
-        doc.addImage(imgData, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
+        doc.addImage(imgData, renderConfig.imageFormat, 0, 0, 210, 297, undefined, 'FAST');
       }
 
       doc.save(fileName);
@@ -3039,6 +3041,32 @@ function pdfEscape(s) {
 
 function pdfSafeFilePart(s) {
   return String(s || 'China').replace(/[^a-zA-Z0-9\-_]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'China';
+}
+
+
+function getPDFRenderConfig() {
+  const isMobile =
+    window.innerWidth <= 768 ||
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  // PDF speed optimization:
+  // - Mobile uses lower scale and JPEG compression for faster generation/download.
+  // - Desktop keeps a higher scale for clearer output while still avoiding heavy PNG files.
+  if (isMobile) {
+    return {
+      scale: 1.7,
+      imageType: 'image/jpeg',
+      imageFormat: 'JPEG',
+      quality: 0.88
+    };
+  }
+
+  return {
+    scale: 2.3,
+    imageType: 'image/jpeg',
+    imageFormat: 'JPEG',
+    quality: 0.92
+  };
 }
 
 function pdfRouteText() {
